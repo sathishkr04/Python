@@ -1,6 +1,6 @@
 import requests,json,os
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv(dotenv_path="/workspaces/Python/Experiments/api-key.env")
 key = os.getenv("API_KEY")
 print(key)
 if not key:
