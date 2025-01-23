@@ -1,6 +1,7 @@
-import requests,json
-
-key = "8399d0de9540bedbf171f90f03580132"
+import requests,json,os
+from dotenv import load_dotenv
+load_dotenv()
+key = os.getenv("API_KEY")
 print(key)
 if not key:
     print("Error : API key not found. Please set the api_weather key")
