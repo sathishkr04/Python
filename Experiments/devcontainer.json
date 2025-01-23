@@ -1,0 +1,9 @@
+{
+    "name": "my-codespace",
+    "build": {
+      "env": {
+        "API_KEY": "adjkfnjfsdf651fa51sd6f5"
+      }
+    }
+  }
+  
