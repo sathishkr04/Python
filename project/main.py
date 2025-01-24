@@ -1,5 +1,5 @@
 import logging,os
-from operation import create_bucket, list_buckets, disable_block_public_access, set_bucket_policy, upload_file, enable_static_website_hosting, scraping_website
+from operation import create_bucket,list_buckets, disable_block_public_access, set_bucket_policy, upload_file, enable_static_website_hosting, scraping_website
 from variables import bucket_name, region, file_path
 
 # Main script
