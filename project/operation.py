@@ -1,74 +1,125 @@
 import logging
-import boto3,os,json
-from botocore.exceptions import ClientError
+import boto3
+import os
+import json,requests
+from botocore.exceptions import ClientError    
 
-def create_bucket(bucket_name="sathishkr", region="us-east-1"):
-    # Create bucket
+    # Configure logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+
+def create_bucket(bucket_name, region="us-east-1"):
+    """Create an S3 bucket in the specified region."""
     try:
+        s3_client = boto3.client('s3', region_name=region)
         if region == "us-east-1":
-            s3_client = boto3.client('s3')
             s3_client.create_bucket(Bucket=bucket_name)
         else:
-            s3_client = boto3.client('s3', region_name=region)
             location = {'LocationConstraint': region}
-            s3_client.create_bucket(Bucket=bucket_name,
-                                    CreateBucketConfiguration=location)
+            s3_client.create_bucket(Bucket=bucket_name, CreateBucketConfiguration=location)
+        logging.info(f"Bucket '{bucket_name}' created successfully.")
     except ClientError as e:
-        logging.error(e)
+        logging.error(f"Error creating bucket: {e}")
         return False
     return True
 
-# Retrieve the list of existing buckets
-s3 = boto3.client('s3')
-response = s3.list_buckets()
+def list_buckets():
+    """List all existing S3 buckets."""
+    try:
+        s3_client = boto3.client('s3')
+        response = s3_client.list_buckets()
+        logging.info("Existing buckets:")
+        for bucket in response.get('Buckets', []):
+            logging.info(f"  {bucket['Name']}")
+    except ClientError as e:
+        logging.error(f"Error listing buckets: {e}")
 
-# Output the bucket names
-print('Existing buckets:')
-for bucket in response['Buckets']:
-    print(f'  {bucket["Name"]}')
+def disable_block_public_access(bucket_name):
+    """Disable Block Public Access for the bucket."""
+    try:
+        s3_client = boto3.client('s3')
+        s3_client.put_public_access_block(
+            Bucket=bucket_name,
+            PublicAccessBlockConfiguration={
+                'BlockPublicAcls': False,
+                'IgnorePublicAcls': False,
+                'BlockPublicPolicy': False,
+                'RestrictPublicBuckets': False
+            }
+        )
+        logging.info(f"Disabled block public access for bucket '{bucket_name}'.")
+        return True
+    except ClientError as e:
+        logging.error(f"Error disabling block public access: {e}")
+        return False
 
-# Create a bucket policy
-bucket_name = "sathishkr"
-bucket_policy = {
-    'Version': '2012-10-17',
-    'Statement': [{
-        'Sid': 'AddPerm',
-        'Effect': 'Allow',
-        'Principal': '*',
-        'Action': ['s3:GetObject'],
-        'Resource': f'arn:aws:s3:::{bucket_name}/*'
-    }]
-}
+def set_bucket_policy(bucket_name):
+    """Set a public-read bucket policy for the given bucket."""
+    bucket_policy = {
+        'Version': '2012-10-17',
+        'Statement': [{
+            'Sid': 'AddPerm',
+            'Effect': 'Allow',
+            'Principal': '*',
+            'Action': ['s3:GetObject'],
+            'Resource': f'arn:aws:s3:::{bucket_name}/*'
+        }]
+    }
 
-# Convert the policy from JSON dict to string
-bucket_policy = json.dumps(bucket_policy)
+    # Convert the policy to a JSON string
+    policy_string = json.dumps(bucket_policy)
 
-# Set the new policy
-s3 = boto3.client('s3')
-s3.put_bucket_policy(Bucket=bucket_name, Policy=bucket_policy)
+    # Apply the bucket policy
+    try:
+        s3_client = boto3.client('s3')
+        s3_client.put_bucket_policy(Bucket=bucket_name, Policy=policy_string)
+        logging.info(f"Bucket policy applied to '{bucket_name}'.")
+    except ClientError as e:
+        logging.error(f"Error setting bucket policy: {e}")
+        return False
+    return True
 
-# Configure logging
-# logging.basicConfig(level=logging.INFO)
-
-# Uploading a file
-def upload_file(file_name="/workspaces/Python/index.html", bucket="sathishkr", object_name="/workspaces/Python/index.html"):
-
-    # If S3 object_name was not specified, use file_name
+def upload_file(file_name, bucket_name, object_name=None,content_type='text/html'):
+    """Upload a file to an S3 bucket."""
     if object_name is None:
         object_name = os.path.basename(file_name)
 
-    # Upload the file
-    s3_client = boto3.client('s3')
     try:
-        response = s3_client.upload_file(file_name, bucket, object_name)
-        logging.info(f"Successfully uploaded {file_name} to {bucket}/{object_name}")
+        s3_client = boto3.client('s3')
+        s3_client.upload_file(
+            file_name, 
+            bucket_name, 
+            object_name, 
+            ExtraArgs={'ContentType': content_type}
+        )
+        logging.info(f"File '{file_name}' uploaded to '{bucket_name}/{object_name}' with content type '{content_type}'.")
     except ClientError as e:
-        logging.error(f"Failed to upload {file_name} to {bucket}/{object_name}: {e}")
+        logging.error(f"Failed to upload file: {e}")
         return False
     return True
 
-# Usage example
-if upload_file('myfile.txt', 'my-bucket'):
-    logging.info("Upload was successful!")
-else:
-    logging.error("Upload failed!")
+def enable_static_website_hosting(bucket_name):
+    """Enable static website hosting for the S3 bucket."""
+    try:
+        s3_client = boto3.client('s3')
+        s3_client.put_bucket_website(
+            Bucket=bucket_name,
+            WebsiteConfiguration={
+                'IndexDocument': {'Suffix': 'index.html'},
+            }
+        )
+        logging.info(f"Static website hosting enabled for bucket '{bucket_name}'.")
+        logging.info(f"Website URL: http://{bucket_name}.s3-website-{s3_client.meta.region_name}.amazonaws.com")
+    except ClientError as e:
+        logging.error(f"Error enabling static website hosting: {e}")
+        return False
+    return True
+def scraping_website():
+    url = input("Enter the valid website url: ")
+    try:
+        response = requests.get(url)
+        response.raise_for_status() 
+        with open("/workspaces/Python/index.html", 'w', encoding='utf-8') as file:
+            file.write(response.text)
+        print(f"HTML content of {url} has been saved to index.html")
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching the webpage: {e}")
