@@ -14,7 +14,7 @@ if __name__ == "__main__":
         # Step 2: Set Bucket Policy
         if disable_block_public_access(bucket_name):
             if set_bucket_policy(bucket_name):
-                # Step 3: Upload a file
+                    # Step 3: Upload a file
                 file_path = "/workspaces/Python/index.html"  # Replace with the path to your file
                 if not os.path.exists(file_path):
                     logging.error(f"File not found: {file_path}")
